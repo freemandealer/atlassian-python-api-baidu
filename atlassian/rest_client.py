@@ -3,10 +3,16 @@ import json
 import logging
 from six.moves.urllib.parse import urlencode
 import requests
+from bs4 import BeautifulSoup
 
+logging.basicConfig()
 log = logging.getLogger('atlassian')
 
+baidu_cookies=''
 
+login_url = 'https://uuap.baidu.com/login'
+headers_login={'User-Agent':''}
+#headers={'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36','X-Atlassian-Token':'nocheck'}
 class AtlassianRestAPI(object):
     default_headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     experimental_headers = {'Content-Type': 'application/json', 'Accept': 'application/json',
@@ -14,7 +20,23 @@ class AtlassianRestAPI(object):
     form_token_headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                           'X-Atlassian-Token': 'no-check'}
 
+    def login(self, username, password):
+        self._session = requests.Session()
+        r = self._session.get(login_url, headers=headers_login)
+        global baidu_cookies
+        baidu_cookies = r.cookies
+        bs = BeautifulSoup(r.text, 'html.parser')
+        lt = bs.find(name="input", attrs={'name':'lt'})['value']
+        execution = bs.find(name="input", attrs={'name':'execution'})['value']
+        payload = {'username':username,'password':password,'rememberMe':'on','lt':lt,'execution':execution,'_eventId':'submit','type':'1'}
+        login_st = self._session.post('https://uuap.baidu.com/login', data=payload, cookies=baidu_cookies, headers=headers_login)
+        r = self._session.get('http://wiki.baidu.com', cookies=baidu_cookies, headers=headers_login)
+        baidu_cookies = r.cookies
+        print login_st
+
+
     def __init__(self, url, username, password, timeout=60, api_root='rest/api', api_version='latest', verify_ssl=True):
+        self.login()
         self.url = url
         self.username = username
         self.password = password
@@ -22,9 +44,8 @@ class AtlassianRestAPI(object):
         self.verify_ssl = verify_ssl
         self.api_root = api_root
         self.api_version = api_version
-        self._session = requests.Session()
-        if username and password:
-            self._session.auth = (username, password)
+#        if username and password:
+#            self._session.auth = (username, password)
 
     def log_curl_debug(self, method, path, data=None, headers=None, level=logging.DEBUG):
         headers = headers or self.default_headers
@@ -56,16 +77,19 @@ class AtlassianRestAPI(object):
         if files is None:
             data = json.dumps(data)
 
+        global baidu_cookies
+
         headers = headers or self.default_headers
         response = self._session.request(
             method=method,
             url=url,
             headers=headers,
             data=data,
-            auth=(self.username, self.password),
-            timeout=self.timeout,
-            verify=self.verify_ssl,
-            files=files
+#            auth=(self.username, self.password),
+#            timeout=self.timeout,
+#            verify=self.verify_ssl,
+#            files=files,
+            cookies=baidu_cookies
         )
         try:
             if response.text:
@@ -79,7 +103,7 @@ class AtlassianRestAPI(object):
         elif response.status_code == 204:
             log.debug('Received: {0}\n "No Content" response'.format(response.status_code))
         elif response.status_code == 404:
-            log.error('Received: {0}\n Not Found'.format(response.status_code))
+            log.error('Received: {0}\n Not Found\n {1}'.format(response.status_code, response_content))
         else:
             log.debug('Received: {0}\n {1}'.format(response.status_code, response))
             self.log_curl_debug(method=method, path=path, headers=headers, data=data, level=logging.DEBUG)
