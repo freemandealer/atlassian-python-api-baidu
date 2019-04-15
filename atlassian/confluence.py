@@ -1,9 +1,15 @@
-# coding: utf8
+# -*- coding: utf-8 -*-
 from .rest_client import AtlassianRestAPI
 from requests import HTTPError
 import logging
 import os
 
+logging.basicConfig(level=logging.DEBUG,
+                format=u'%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S',
+                filename='wiki.log',
+                filemode='a+')
+logging._defaultFormatter = logging.Formatter(u'%(message)s')
 log = logging.getLogger(__name__)
 
 
@@ -421,8 +427,6 @@ class Confluence(AtlassianRestAPI):
             'value')
         confluence_content = confluence_content.replace('&oacute;', u'ó')
 
-        log.debug('Old Content: """{body}"""'.format(body=confluence_content))
-        log.debug('New Content: """{body}"""'.format(body=body))
 
         if confluence_content == body:
             log.warning('Content of {page_id} is exactly the same'.format(page_id=page_id))
@@ -444,7 +448,6 @@ class Confluence(AtlassianRestAPI):
             If False then notifications will be sent.
         :return:
         """
-        log.info('Updating {type} "{title}"'.format(title=title, type=type))
 
         if self.is_page_content_is_already_updated(page_id, body):
             return self.get_page_by_id(page_id)

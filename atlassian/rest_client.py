@@ -5,7 +5,12 @@ from six.moves.urllib.parse import urlencode
 import requests
 from bs4 import BeautifulSoup
 
-logging.basicConfig()
+logging.basicConfig(level=logging.DEBUG,
+                format=u'%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S',
+                filename='wiki.log',
+                filemode='a+')
+logging._defaultFormatter = logging.Formatter(u'%(message)s')
 log = logging.getLogger('atlassian')
 
 baidu_cookies=''
